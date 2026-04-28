@@ -59,14 +59,21 @@ export const getAuthorById = async function(req, res){
 // ---- CREATE ----
 
 export const createAuthor = async function(req, res) {
-    const {code, name} = req.body;
-    const values = [code, name];
-    if (!code || !name) {
+    const [columns, values] = [[], []];
+    const whitelist = ["code", "name", "praenomen", "nomen", "cognomen"];
+    for (let prop in req.body) {
+        if (req.body[prop] && whitelist.includes(prop)){
+            columns.push(`${prop} = ?`);
+            values.push(req.body[prop]);
+        }
+    }
+    const placeholders = new Array(columns.length).fill('?');
+    if (!req.body.code || !req.body.name) {
         return reportNoData(res, "Author Code and Name are required");
     }
     try {
-        const sql = `INSERT INTO Authors (code, name) 
-		                    VALUES (?, ?)`;
+        const sql = `INSERT INTO Authors (${columns.join(", ")}) 
+		                    VALUES (${placeholders.join(", ")})`;
         const [result] = await connection.execute(sql, values);
         if (result.affectedRows === 1) {
             return reportSuccess(res, "Author");
@@ -79,8 +86,14 @@ export const createAuthor = async function(req, res) {
 // ---- UPDATE ----
 export const updateAuthor = async function(req, res) {
     const id = req.params.id;
+    const whitelist = ["code", "name", "praenomen", "nomen", "cognomen"];
     const [columns, values] = [[], []];
-    getSql(req.body, columns, values);
+    for (let prop in req.body) {
+        if (req.body[prop] && whitelist.includes(prop)){
+            columns.push(`${prop} = ?`);
+            values.push(req.body[prop]);
+        }
+    }
     try {
         const authorCheck = "SELECT id FROM Authors WHERE id = ?";
         if (!await recordExists(authorCheck, connection, id)) {
@@ -93,6 +106,7 @@ export const updateAuthor = async function(req, res) {
         }
         values.push(id);
         const sql = `UPDATE Authors SET ${columns.join(", ")} WHERE id=?`;
+        console.log(sql);
         const [result] = await connection.execute(sql, values);
         if (result.affectedRows === 1) {
             return reportSuccess(res, "Author");
