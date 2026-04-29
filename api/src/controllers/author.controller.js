@@ -61,6 +61,32 @@ export const getAuthorById = async function (req, res) {
     }
 }
 
+export const getMetadata = async (req, res) => {
+    try {
+        const sql = "DESC authors";
+        const [rows] = await connection.execute(sql);
+        if (rows.length === 0) {
+            return res.status(404).json({
+                error: "Not Found",
+                message: "No records match the search criteria"
+            });
+        } else {
+            const metadataList = [];
+            for (let row of rows) {
+                let metadata = buildMetadata(row);
+                metadataList.push(metadata);
+            }
+            return res.json(metadataList);
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            error: "Database error",
+            message: "There was an error fetching the data."
+        });
+    }
+}
+
 // ---- CREATE ----
 
 export const createAuthor = async function (req, res) {
@@ -142,4 +168,36 @@ export const deleteAuthor = async function (req, res) {
     } catch (e) {
         return reportServerError(res, e);
     }
+}
+
+// ---- AUX ----
+export function buildMetadata(field) {
+    const metadata = {};
+    metadata.name = field.Field;
+    if (field["Type"].includes("enum")) {
+        let typeParts = field["Type"].split(/[()]/);
+        let valueList = typeParts[1].split(",").map(v => v.replaceAll("'", ""));
+        metadata.datatype = typeParts[0];
+        metadata.valueList = valueList;
+    } else if (field["Type"].includes("varchar")) {
+        metadata.datatype = "string";
+    } else if (field["Type"].includes("int")) {
+        metadata.datatype = "int";
+    } else {
+        metadata.datatype = field["Type"];
+    }
+    if (field.Key === "PRI") {
+        metadata.isPrimaryKey = true;
+    } else if (field.Key === "MUL") {
+        metadata.isForeignKey = true;
+    } else if (field.Key === "UNI") {
+        metadata.isUnique = true;
+    }
+    metadata.nullable = field.Null === "YES";
+    metadata.hasAutoIncrement = field.Extra === "auto_increment";
+    metadata.default = {
+        hasDefault: field.Default !== null,
+        defaultValue: field.Default
+    };
+    return metadata;
 }

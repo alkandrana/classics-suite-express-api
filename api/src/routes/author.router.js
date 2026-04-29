@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import {Router} from 'express';
 
-import { getAuthors, getAuthorsByName, getAuthorById,
-    createAuthor, updateAuthor, deleteAuthor }
+import {
+    getAuthors, getAuthorsByName, getAuthorById, getMetadata,
+    createAuthor, updateAuthor, deleteAuthor
+}
     from '../controllers/author.controller.js';
 
 const authorRouter = new Router();
@@ -17,6 +19,8 @@ const authorRouter = new Router();
  *         content: application/json
  */
 authorRouter.get('/', getAuthors);
+
+authorRouter.get('/metadata', getMetadata);
 
 /**
  * @swagger
@@ -38,6 +42,7 @@ authorRouter.get('/name/:name', getAuthorsByName);
 
 
 authorRouter.get('/:id', getAuthorById);
+
 
 /**
  * @swagger
