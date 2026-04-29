@@ -10,7 +10,7 @@ import {
 
 // ---- READ ----
 // /works
-export const getAuthors = async function(req, res) {
+export const getAuthors = async function (req, res) {
     try {
         const sql = "SELECT * FROM Authors ORDER BY name";
         const [rows] = await connection.execute(sql);
@@ -25,10 +25,13 @@ export const getAuthors = async function(req, res) {
 }
 
 // /authors/name/:name
-export const getAuthorsByName = async function(req, res){
+export const getAuthorsByName = async function (req, res) {
     const keyword = "%" + req.params.name + "%";
     try {
-        const sql = `SELECT * FROM Authors WHERE name LIKE ? ORDER BY name`;
+        const sql = `SELECT *
+                     FROM Authors
+                     WHERE name LIKE ?
+                     ORDER BY name`;
         const [rows] = await connection.execute(sql, [keyword]);
         if (rows.length === 0) {
             return reportNotFound(res, "Author");
@@ -41,29 +44,31 @@ export const getAuthorsByName = async function(req, res){
 }
 
 // /authors/:id
-export const getAuthorById = async function(req, res){
+export const getAuthorById = async function (req, res) {
     const id = req.params.id;
     try {
-        const sql = `SELECT * FROM Authors WHERE id=?`;
+        const sql = `SELECT *
+                     FROM Authors
+                     WHERE id = ?`;
         const [rows] = await connection.execute(sql, [id]);
-        if (rows.length === 0){
+        if (rows.length === 0) {
             return reportNotFound(res, "Author");
         } else {
             return res.json(rows[0]);
         }
-    } catch (e){
+    } catch (e) {
         return reportServerError(res, e);
     }
 }
 
 // ---- CREATE ----
 
-export const createAuthor = async function(req, res) {
+export const createAuthor = async function (req, res) {
     const [columns, values] = [[], []];
     const whitelist = ["code", "name", "praenomen", "nomen", "cognomen"];
     for (let prop in req.body) {
-        if (req.body[prop] && whitelist.includes(prop)){
-            columns.push(`${prop} = ?`);
+        if (req.body[prop] && whitelist.includes(prop)) {
+            columns.push(prop);
             values.push(req.body[prop]);
         }
     }
@@ -72,8 +77,9 @@ export const createAuthor = async function(req, res) {
         return reportNoData(res, "Author Code and Name are required");
     }
     try {
-        const sql = `INSERT INTO Authors (${columns.join(", ")}) 
-		                    VALUES (${placeholders.join(", ")})`;
+        const sql = `INSERT INTO Authors (${columns.join(", ")})
+                     VALUES (${placeholders.join(", ")})`;
+        console.log(sql);
         const [result] = await connection.execute(sql, values);
         if (result.affectedRows === 1) {
             return reportSuccess(res, "Author");
@@ -84,12 +90,12 @@ export const createAuthor = async function(req, res) {
 }
 
 // ---- UPDATE ----
-export const updateAuthor = async function(req, res) {
+export const updateAuthor = async function (req, res) {
     const id = req.params.id;
     const whitelist = ["code", "name", "praenomen", "nomen", "cognomen"];
     const [columns, values] = [[], []];
     for (let prop in req.body) {
-        if (req.body[prop] && whitelist.includes(prop)){
+        if (req.body[prop] && whitelist.includes(prop)) {
             columns.push(`${prop} = ?`);
             values.push(req.body[prop]);
         }
@@ -105,31 +111,35 @@ export const updateAuthor = async function(req, res) {
             });
         }
         values.push(id);
-        const sql = `UPDATE Authors SET ${columns.join(", ")} WHERE id=?`;
+        const sql = `UPDATE Authors
+                     SET ${columns.join(", ")}
+                     WHERE id = ?`;
         console.log(sql);
         const [result] = await connection.execute(sql, values);
         if (result.affectedRows === 1) {
             return reportSuccess(res, "Author");
         }
-    } catch (e){
+    } catch (e) {
         return reportServerError(res, e);
     }
 }
 
 // ---- DELETE ----
-export const deleteAuthor = async function(req, res){
+export const deleteAuthor = async function (req, res) {
     const id = req.params.id;
-    try{
+    try {
         const authorCheck = "SELECT Authors.id FROM Authors WHERE id=?";
         if (!await recordExists(authorCheck, connection, id)) {
             return reportNoRecord(res, "Author");
         }
-        const sql = `DELETE FROM Authors WHERE id=?`;
+        const sql = `DELETE
+                     FROM Authors
+                     WHERE id = ?`;
         const [result] = await connection.execute(sql, [id]);
-        if (result.affectedRows === 1){
+        if (result.affectedRows === 1) {
             return reportSuccess(res, "Author");
         }
-    } catch (e){
+    } catch (e) {
         return reportServerError(res, e);
     }
 }
