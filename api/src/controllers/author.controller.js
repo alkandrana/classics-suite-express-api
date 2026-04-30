@@ -72,8 +72,15 @@ export const getMetadata = async (req, res) => {
             });
         } else {
             const metadataList = [];
+            const authorMap = {
+                code: "Author Abbreviation",
+                name: "Common Name",
+                praenomen: "First Name",
+                nomen: "Native Name",
+                cognomen: "Nickname"
+            };
             for (let row of rows) {
-                let metadata = buildMetadata(row);
+                let metadata = buildMetadata(row, authorMap);
                 metadataList.push(metadata);
             }
             return res.json(metadataList);
@@ -171,9 +178,11 @@ export const deleteAuthor = async function (req, res) {
 }
 
 // ---- AUX ----
-export function buildMetadata(field) {
+export function buildMetadata(field, map) {
     const metadata = {};
     metadata.name = field.Field;
+    metadata.label = map[field.Field];
+    console.log(field.Field, map[field.Field]);
     if (field["Type"].includes("enum")) {
         let typeParts = field["Type"].split(/[()]/);
         let valueList = typeParts[1].split(",").map(v => v.replaceAll("'", ""));
