@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import {Router} from 'express';
 
-import { getWorks, getWorksByAuthor, getWorksByTitle, getWorkById,
-    createWork, updateWork, deleteWork }
+import {
+    getWorks, getWorksByAuthor, getWorksByTitle, getWorkById, getMetadata,
+    createWork, updateWork, deleteWork
+}
     from '../controllers/opus.controller.js';
 
 const opusRouter = new Router();
@@ -17,6 +19,8 @@ const opusRouter = new Router();
  *         content: application/json
  */
 opusRouter.get('/', getWorks);
+
+opusRouter.get('/metadata', getMetadata);
 
 /**
  * @swagger
