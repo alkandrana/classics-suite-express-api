@@ -7,7 +7,7 @@ import {
     reportServerError,
     reportNotFound, getSql
 } from '../utils/responses.js';
-import {author as authorMap, buildMetadata} from "./metadata.js";
+import {opus as opusMap, buildMetadata, getList} from "./metadata.js";
 
 // ---- READ ----
 // /works
@@ -84,29 +84,37 @@ export const getWorkById = async function (req, res) {
 }
 
 export const getMetadata = async (req, res) => {
-    try {
-        const sql = "DESC opera";
-        const [rows] = await connection.execute(sql);
-        if (rows.length === 0) {
-            return res.status(404).json({
-                error: "Not Found",
-                message: "No records match the search criteria"
-            });
-        } else {
-            const metadataList = [];
-            for (let row of rows) {
-                let metadata = buildMetadata(row, authorMap);
-                metadataList.push(metadata);
-            }
-            return res.json(metadataList);
+    const sql = "DESC opera";
+    const rows = await getList(res, sql);
+    const metadata = {
+        id: "id",
+        label: "title",
+        name: "code",
+        columns: []
+    };
+    console.log("Table columns: ", rows);
+    for (let row of rows) {
+        if (row.Key === "MUL") {
+            const column = row.Field;
+            let relationSql = `SELECT CONSTRAINT_NAME,
+                                      REFERENCED_TABLE_NAME,
+                                      REFERENCED_COLUMN_NAME
+                               FROM information_schema.KEY_COLUMN_USAGE
+                               WHERE COLUMN_NAME = ?
+                                 AND TABLE_SCHEMA = 'classics_db_node'
+                                 AND REFERENCED_TABLE_NAME IS NOT NULL;`
+            const fkRows = await getList(res, relationSql, column);
+            console.log("Foreign Keys: ", fkRows);
+            const tableName = fkRows[0].REFERENCED_TABLE_NAME;
+            const valueList = await getList(res, `SELECT *
+                                                  FROM ${tableName}`);
+            row.values = valueList;
+            console.log("Column details: ", row);
         }
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Database error",
-            message: "There was an error fetching the data."
-        });
+        let column = buildMetadata(row, opusMap, metadata);
+        metadata.columns.push(column);
     }
+    return res.json(metadata);
 }
 // ---- CREATE ----
 
