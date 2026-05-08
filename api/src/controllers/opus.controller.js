@@ -1,0 +1,50 @@
+import 'dotenv/config';
+import {drizzle} from 'drizzle-orm/libsql';
+import {eq} from 'drizzle-orm';
+import {opera} from '../db/schema.js';
+
+const db = drizzle(process.env.DB_FILE_NAME);
+
+export async function getOpera(req, res) {
+    const opusList = await db.select().from(opera);
+    return res.json(opusList);
+}
+
+export async function getOpus(req, res) {
+    const opusId = req.params.id;
+    const opus = await db.select().from(opera).where(eq(opera.id, opusId));
+    return res.json(opus);
+}
+
+export async function createOpus(req, res) {
+    const opus = req.body;
+    const response = await db.insert(opera).values(opus);
+    console.log("Creating: ", response);
+    return res.json({
+        status: `Rows affected: ${response.rowsAffected}`,
+        message: "Work created successfully"
+    });
+}
+
+export async function updateOpus(req, res) {
+    const opusId = req.params.id;
+    const opusData = req.body;
+    const response = await db.update(opera).set(opusData).where(eq(opera.id, opusId));
+    console.log("Updating: ", response);
+    return res.json({
+        id: opusId,
+        status: response.info,
+        message: "Work updated successfully"
+    });
+}
+
+export async function deleteOpus(req, res) {
+    const opusId = req.params.id;
+    const response = await db.delete(opera).where(eq(opera.id, opusId));
+    console.log("Deleting: ", response);
+    return res.json({
+        id: id,
+        status: `Rows affected: ${response.rowsAffected}`,
+        message: "Work deleted successfully"
+    });
+}
