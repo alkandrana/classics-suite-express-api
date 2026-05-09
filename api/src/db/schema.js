@@ -18,8 +18,8 @@ export const opera = sqliteTable("opera", {
     id: int().primaryKey({autoIncrement: true}),
     code: text().notNull(),
     title: text().notNull(),
-    languageId: int("language_id").references(() => languages.id),
-    authorId: int("author_id").references(() => authors.id)
+    languageId: int("language_id").notNull().references(() => languages.id),
+    authorId: int("author_id").notNull().references(() => authors.id)
 });
 
 export const lines = sqliteTable("lines", {
@@ -27,5 +27,5 @@ export const lines = sqliteTable("lines", {
     number: int().notNull(),
     text: text().notNull(),
     locus: text().notNull(),
-    opusId: int("opus_id").references(() => opera.id),
+    opusId: int("opus_id").notNull().references(() => opera.id),
 });

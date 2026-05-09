@@ -5,15 +5,20 @@ import {lines} from '../db/schema.js';
 
 const db = drizzle(process.env.DB_FILE_NAME);
 
+export async function getLines(req, res) {
+    const lineList = await db.select().from(lines);
+    return res.json(lineList);
+}
+
 export async function getLinesByOpus(req, res) {
     const opusId = req.params.id;
-    const lineList = await db.select().from(opera).where(eq(lines.opusId, opusId));
+    const lineList = await db.select().from(lines).where(eq(lines.opusId, opusId));
     return res.json(lineList);
 }
 
 export async function getLine(req, res) {
     const lineId = req.params.id;
-    const line = await db.select().from(lines).where(eq(lines.id, lineId));
+    const [line] = await db.select().from(lines).where(eq(lines.id, lineId));
     return res.json(line);
 }
 

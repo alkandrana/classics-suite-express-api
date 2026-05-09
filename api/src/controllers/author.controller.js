@@ -12,7 +12,7 @@ export async function getAuthors(req, res) {
 
 export async function getAuthor(req, res) {
     const authorId = req.params.id;
-    const author = await db.select().from(authors).where(eq(authors.id, authorId));
+    const [author] = await db.select().from(authors).where(eq(authors.id, authorId));
     return res.json(author);
 }
 

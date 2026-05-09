@@ -12,12 +12,13 @@ export async function getOpera(req, res) {
 
 export async function getOpus(req, res) {
     const opusId = req.params.id;
-    const opus = await db.select().from(opera).where(eq(opera.id, opusId));
+    const [opus] = await db.select().from(opera).where(eq(opera.id, opusId));
     return res.json(opus);
 }
 
 export async function createOpus(req, res) {
     const opus = req.body;
+    console.log("Opus to add: ", opus);
     const response = await db.insert(opera).values(opus);
     console.log("Creating: ", response);
     return res.json({

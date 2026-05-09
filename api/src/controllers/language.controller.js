@@ -10,6 +10,12 @@ export async function getLanguages(req, res) {
     return res.json(languageList);
 }
 
+export async function getLanguage(req, res) {
+    const languageId = req.params.id;
+    const [language] = await db.select().from(languages).where(eq(languages.id, languageId));
+    return res.json(language);
+}
+
 export async function createLanguage(req, res) {
     const language = req.body;
     const response = await db.insert(languages).values(language);
