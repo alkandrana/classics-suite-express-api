@@ -10,6 +10,8 @@ export async function getOpera(req, res) {
     for (const op of opusList) {
         let [lineCount] = await db.select({count: count()}).from(lines).where(eq(lines.opusId, op.id));
         op.lineCount = lineCount.count;
+        [op.author] = await db.select().from(authors).where(eq(authors.id, op.authorId));
+        [op.language] = await db.select().from(languages).where(eq(languages.id, op.languageId));
     }
     return res.json(opusList);
 }
