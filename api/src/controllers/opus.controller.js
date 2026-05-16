@@ -16,6 +16,12 @@ export async function getOpera(req, res) {
     return res.json(opusList);
 }
 
+export async function getOpusByCode(req, res) {
+    const code = req.params.code;
+    const opus = await db.select().from(opera).where(eq(opera.code, code));
+    return res.json(opus);
+}
+
 export async function getOpus(req, res) {
     const opusId = req.params.id;
     const [opus] = await db.select().from(opera).where(eq(opera.id, opusId));
