@@ -1,192 +1,73 @@
-import connection from '../../database.config.js';
-import {
-    reportNoData,
-    recordExists,
-    reportNoRecord,
-    reportSuccess,
-    reportServerError,
-    reportNotFound, getSql
-} from '../utils/responses.js';
-import {opus as opusMap, buildMetadata, getList} from "./metadata.js";
+import 'dotenv/config';
+import {drizzle} from 'drizzle-orm/libsql';
+import {count, eq} from 'drizzle-orm';
+import {opera, lines, authors, languages} from '../db/schema.js';
 
-// ---- READ ----
-// /works
-export const getWorks = async function (req, res) {
-    try {
-        const sql = "SELECT * FROM Opera ORDER BY title";
-        const [rows] = await connection.execute(sql);
-        if (rows.length === 0) {
-            return reportNotFound(res, "Work");
-        } else {
-            return res.json(rows);
-        }
-    } catch (e) {
-        return reportServerError(res, e);
+const db = drizzle(process.env.DB_FILE_NAME);
+
+export async function getOpera(req, res) {
+    const opusList = await db.select().from(opera);
+    for (const op of opusList) {
+        let [lineCount] = await db.select({count: count()}).from(lines).where(eq(lines.opusId, op.id));
+        op.lineCount = lineCount.count;
+        [op.author] = await db.select().from(authors).where(eq(authors.id, op.authorId));
+        [op.language] = await db.select().from(languages).where(eq(languages.id, op.languageId));
     }
+    return res.json(opusList);
 }
 
-// /works/author/:name
-export const getWorksByAuthor = async function (req, res) {
-    const authorKey = '%' + req.params.name + '%';
-    try {
-        const sql = `SELECT *
-                     FROM Opera
-                              JOIN Authors ON Opera.authorId = Authors.id
-                     WHERE Authors.name LIKE ?
-                     ORDER BY Opera.title`;
-        const [rows] = await connection.execute(sql, [authorKey]);
-        if (rows.length === 0) {
-            return reportNotFound(res, "Work");
-        } else {
-            return res.json(rows);
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
+export async function getOpusByCode(req, res) {
+    const code = req.params.code;
+    const opus = await db.select().from(opera).where(eq(opera.code, code));
+    return res.json(opus);
 }
 
-// /works/title/:title
-export const getWorksByTitle = async function (req, res) {
-    const keyword = "%" + req.params.title + "%";
-    try {
-        const sql = `SELECT *
-                     FROM Opera
-                     WHERE title LIKE ?
-                     ORDER BY title`;
-        const [rows] = await connection.execute(sql, [keyword]);
-        if (rows.length === 0) {
-            return reportNotFound(res, "Work");
-        } else {
-            return res.json(rows);
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
+export async function getOpus(req, res) {
+    const opusId = req.params.id;
+    const [opus] = await db.select().from(opera).where(eq(opera.id, opusId));
+    [opus.author] = await db.select().from(authors).where(eq(authors.id, opus.authorId));
+    [opus.language] = await db.select().from(languages).where(eq(languages.id, opus.languageId));
+    const opusLines = await db.select().from(lines).where(eq(lines.opusId, opusId));
+    const sectionedLines = Object.groupBy(opusLines, ({locus}) => {
+        let secs = locus.split(".");
+        let currentSec = secs.slice(0, secs.length - 1);
+        return currentSec.length == 0 ? "unsectioned" : currentSec[0];
+    });
+    opus.lines = sectionedLines;
+    return res.json(opus);
 }
 
-// /works/:id
-export const getWorkById = async function (req, res) {
-    const id = req.params.id;
-    try {
-        const sql = `SELECT o.id, o.title, a.name, o.language
-                     FROM Opera o
-                              JOIN Authors a ON a.id = o.authorId
-                     WHERE o.ID = ?`;
-        const [rows] = await connection.execute(sql, [id]);
-        if (rows.length === 0) {
-            return reportNotFound(res, "Work");
-        } else {
-            return res.json(rows[0]);
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
+
+export async function createOpus(req, res) {
+    const opus = req.body;
+    console.log("Opus to add: ", opus);
+    const response = await db.insert(opera).values(opus);
+    console.log("Creating: ", response);
+    return res.json({
+        status: `Rows affected: ${response.rowsAffected}`,
+        message: "Work created successfully"
+    });
 }
 
-export const getMetadata = async (req, res) => {
-    const sql = "DESC opera";
-    const rows = await getList(res, sql);
-    const metadata = {
-        id: "id",
-        label: "title",
-        name: "code",
-        columns: []
-    };
-    console.log("Table columns: ", rows);
-    for (let row of rows) {
-        if (row.Key === "MUL") {
-            const column = row.Field;
-            let relationSql = `SELECT CONSTRAINT_NAME,
-                                      REFERENCED_TABLE_NAME,
-                                      REFERENCED_COLUMN_NAME
-                               FROM information_schema.KEY_COLUMN_USAGE
-                               WHERE COLUMN_NAME = ?
-                                 AND TABLE_SCHEMA = 'classics_db_node'
-                                 AND REFERENCED_TABLE_NAME IS NOT NULL;`
-            const fkRows = await getList(res, relationSql, column);
-            console.log("Foreign Keys: ", fkRows);
-            const tableName = fkRows[0].REFERENCED_TABLE_NAME;
-            const valueList = await getList(res, `SELECT *
-                                                  FROM ${tableName}`);
-            row.values = valueList;
-            console.log("Column details: ", row);
-        }
-        let column = buildMetadata(row, opusMap, metadata);
-        metadata.columns.push(column);
-    }
-    return res.json(metadata);
-}
-// ---- CREATE ----
-
-export const createWork = async function (req, res) {
-    const {code, title, authorId, language} = req.body;
-    const values = [code, title, authorId, language];
-    if (!code || !authorId || !title) {
-        return reportNoData(res, "Title, AuthorId, and WorkId are required");
-    }
-    try {
-        const authorCheck = `SELECT id
-                             FROM Authors
-                             WHERE id = ?`;
-        if (!await recordExists(authorCheck, connection, authorId)) {
-            return reportNoRecord(res, "Author");
-        }
-        console.log("I didn't return!");
-        const sql = `INSERT INTO Opera (code, title, authorId, language)
-                     VALUES (?, ?, ?, ?)`;
-        const [result] = await connection.execute(sql, values);
-        if (result.affectedRows === 1) {
-            return reportSuccess(res, "Work");
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
+export async function updateOpus(req, res) {
+    const opusId = req.params.id;
+    const opusData = req.body;
+    const response = await db.update(opera).set(opusData).where(eq(opera.id, opusId));
+    console.log("Updating: ", response);
+    return res.json({
+        id: opusId,
+        status: response.info,
+        message: "Work updated successfully"
+    });
 }
 
-// ---- UPDATE ----
-export const updateWork = async function (req, res) {
-    const id = req.params.id;
-    const authorId = req.body.authorId;
-    const [columns, values] = [[], []];
-    getSql(req.body, columns, values);
-    values.push(id);
-    try {
-        const opusCheck = "SELECT id FROM Opera WHERE id=?";
-        if (!await recordExists(opusCheck, connection, id)) {
-            return reportNoRecord(res, "Work");
-        }
-        const authorCheck = "SELECT id FROM Authors WHERE id = ?";
-        if (!await recordExists(authorCheck, connection, authorId)) {
-            return reportNoRecord(res, "Author");
-        }
-        const sql = `UPDATE Opera
-                     SET ${columns.join(", ")}
-                     WHERE id = ?`;
-        const [result] = await connection.execute(sql, values);
-        if (result.affectedRows === 1) {
-            return reportSuccess(res, "Work");
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
-}
-
-// ---- DELETE ----
-export const deleteWork = async function (req, res) {
-    const id = req.params.id;
-    try {
-        const opusCheck = "SELECT id FROM Opera WHERE id=?";
-        if (!await recordExists(opusCheck, connection, id)) {
-            return reportNoRecord(res, "Work");
-        }
-        const sql = `DELETE
-                     FROM Opera
-                     WHERE id = ?`;
-        const [result] = await connection.execute(sql, [id]);
-        if (result.affectedRows === 1) {
-            return reportSuccess(res, "Work");
-        }
-    } catch (e) {
-        return reportServerError(res, e);
-    }
+export async function deleteOpus(req, res) {
+    const opusId = req.params.id;
+    const response = await db.delete(opera).where(eq(opera.id, opusId));
+    console.log("Deleting: ", response);
+    return res.json({
+        id: id,
+        status: `Rows affected: ${response.rowsAffected}`,
+        message: "Work deleted successfully"
+    });
 }

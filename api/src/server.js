@@ -1,25 +1,24 @@
 import express from 'express';
 import cors from 'cors';
-import swaggerJsdoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
-import { swaggerOptions } from '../swagger.config.js'
-import opusRouter from './routes/opus.router.js';
-import authorRouter from "./routes/author.router.js";
+import authorRouter from './routers/author.router.js';
+import opusRouter from './routers/opus.router.js';
+import lineRouter from './routers/line.router.js';
+import languageRouter from './routers/language.router.js';
 
 const app = express();
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(cors());
 app.use(express.json());
 
-app.use("/works", opusRouter);
-app.use("/authors", authorRouter);
+app.use('/authors', authorRouter);
+app.use('/works', opusRouter);
+app.use('/lines', lineRouter);
+app.use('/languages', languageRouter);
 
-app.get('/',function(req, res) {
-    res.send("Hello from Node API Server");
+app.get('/', (req, res) => {
+    res.send("Welcome to the database!");
 });
 
-app.listen(3000, () => {
-    console.log('Server is running on port 3000, docs at /api-docs');
+
+app.listen(3001, () => {
+    console.log('Server running on port 3001!');
 });
