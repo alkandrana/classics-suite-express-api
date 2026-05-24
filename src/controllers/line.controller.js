@@ -24,12 +24,19 @@ export async function getLine(req, res) {
 
 export async function createLine(req, res) {
     const line = req.body;
-    const response = await db.insert(lines).values(line);
-    console.log("Creating: ", response);
-    return res.json({
-        status: `Rows affected: ${response.rowsAffected}`,
-        message: "Line created successfully"
-    });
+    const [result] = await db.insert(lines).values(line).returning();
+    console.log("Creating: ", result);
+    if (result) {
+        return res.json({
+            data: result,
+            message: "Line created successfully"
+        });
+    } else {
+        return res.status(500).json({
+            message: 'There was an error inserting line'
+        });
+    }
+
 }
 
 export async function updateLine(req, res) {
