@@ -53,10 +53,11 @@ export async function updateLine(req, res) {
 
 export async function deleteLine(req, res) {
     const lineId = req.params.id;
+    console.log(req.params.id);
     const response = await db.delete(lines).where(eq(lines.id, lineId));
     console.log("Deleting: ", response);
     return res.json({
-        id: id,
+        id: lineId,
         status: `Rows affected: ${response.rowsAffected}`,
         message: "Line deleted successfully"
     });
