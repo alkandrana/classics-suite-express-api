@@ -19,6 +19,9 @@ export async function getOpera(req, res) {
 export async function getOpusByCode(req, res) {
     const code = req.params.code;
     const opus = await db.select().from(opera).where(eq(opera.code, code));
+    for (const op of opus) {
+        [op.author] = await db.select().from(authors).where(eq(authors.id, op.authorId));
+    }
     return res.json(opus);
 }
 
