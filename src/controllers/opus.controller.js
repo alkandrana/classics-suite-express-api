@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import {drizzle} from 'drizzle-orm/libsql';
 import {count, eq} from 'drizzle-orm';
-import {opera, lines, authors, languages} from '../db/schema.js';
+import {authors, languages, lines, opera} from '../db/schema.js';
 
 const db = drizzle(process.env.DB_FILE_NAME);
 
@@ -28,15 +28,24 @@ export async function getOpusByCode(req, res) {
 export async function getOpus(req, res) {
     const opusId = req.params.id;
     const [opus] = await db.select().from(opera).where(eq(opera.id, opusId));
+    if (!opus){
+        return res.status(404).send({error: 'Work not found'});
+    }
     [opus.author] = await db.select().from(authors).where(eq(authors.id, opus.authorId));
+    if (!opus.author){
+        return res.status(404).send({message: "Author not found."});
+    }
     [opus.language] = await db.select().from(languages).where(eq(languages.id, opus.languageId));
+    if (!opus.language){
+        return res.status(404).send({message: "Language not found."});
+    }
     const opusLines = await db.select().from(lines).where(eq(lines.opusId, opusId));
-    const sectionedLines = Object.groupBy(opusLines, ({locus}) => {
+    opus.lines = Object.groupBy(opusLines, ({locus}) => {
         let secs = locus.split(".");
+        // 16,1,Hactenus arvorum cultus et sidera caeli:,2.1,1
         let currentSec = secs.slice(0, secs.length - 1);
-        return currentSec.length == 0 ? "unsectioned" : currentSec[0];
+        return currentSec.length == 0 ? "1" : currentSec[0];
     });
-    opus.lines = sectionedLines;
     return res.json(opus);
 }
 
